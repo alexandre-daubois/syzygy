@@ -1,9 +1,7 @@
 package process
 
 import (
-	"fmt"
-	"strconv"
-	"time"
+	"log"
 )
 
 type ProcessManager struct {
@@ -23,39 +21,33 @@ func (pm *ProcessManager) AddProcess(p *Process) {
 	pm.Processes[p.Pid] = p
 }
 
-func (pm *ProcessManager) RunCommand(command ...string) {
-	p := NewProcess(pm.events, command...)
-	pm.AddProcess(p)
-
-	p.Start()
+func (pm *ProcessManager) RemoveProcess(p *Process) {
+	delete(pm.Processes, p.Pid)
 }
 
-// Watch checks for process events to happen and notify the event channel
-func (pm *ProcessManager) Watch() {
-	for {
-		time.Sleep(1 * time.Second)
+func (pm *ProcessManager) RunCommand(command ...string) {
+	p := NewProcess(command...)
+	p.Start()
 
-		for _, p := range pm.Processes {
-			if p.State().Exited() {
-				delete(pm.Processes, p.Pid)
-				p.events <- ProcessEvent{Event: Stopped, Pid: p.Pid}
-			}
-		}
-	}
+	pm.AddProcess(p)
+
+	go p.WatchState(pm.events)
+}
+
+func (pm *ProcessManager) handleProcessStopped(p *Process) {
+	pm.RemoveProcess(p)
+	log.Printf("Process %d stopped", p.Pid)
 }
 
 func (pm *ProcessManager) Loop() {
 	defer close(pm.events)
-	go pm.Watch()
 
 	for {
 		select {
 		case processEvent := <-pm.events:
 			switch processEvent.Event {
-			case Started:
-				fmt.Println("Process " + strconv.Itoa(processEvent.Pid) + " started")
 			case Stopped:
-				fmt.Println("Process " + strconv.Itoa(processEvent.Pid) + " stopped")
+				pm.handleProcessStopped(pm.Processes[processEvent.Pid])
 			}
 		}
 

@@ -11,12 +11,10 @@ type Process struct {
 	Pid     int
 
 	process *os.Process
-	events  chan ProcessEvent
 }
 
-func NewProcess(events chan ProcessEvent, command ...string) *Process {
+func NewProcess(command ...string) *Process {
 	return &Process{
-		events:  events,
 		Command: command,
 	}
 }
@@ -34,7 +32,7 @@ func (p *Process) Start() error {
 	p.process = cmd.Process
 	p.Pid = cmd.Process.Pid
 
-	p.events <- ProcessEvent{Event: Started, Pid: p.Pid}
+	log.Printf("Process '%s' started with pid %d\n", p.Command, p.Pid)
 
 	return nil
 }
@@ -50,19 +48,18 @@ func (p *Process) Stop() error {
 		}
 
 		p.process.Wait()
-
-		p.events <- ProcessEvent{Event: Stopped, Pid: p.Pid}
 	}()
 
 	return nil
 }
 
-func (p *Process) State() *os.ProcessState {
+func (p *Process) WatchState(events chan ProcessEvent) {
 	state, err := p.process.Wait()
-
 	if err != nil {
 		log.Fatalf("Process '%s' state failed with %s\n", p.Command, err)
 	}
 
-	return state
+	if state.Exited() {
+		events <- ProcessEvent{Event: Stopped, Pid: p.Pid}
+	}
 }
