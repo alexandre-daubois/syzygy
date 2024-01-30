@@ -2,10 +2,11 @@ package process
 
 const (
 	Started = iota
-	Stopped
+	Exited
+	Restarted
 )
 
 type Event struct {
-	Event int
-	Pid   int
+	Event   int
+	Process *Process
 }

@@ -7,15 +7,19 @@ import (
 )
 
 type Process struct {
-	Command []string
-	Pid     int
+	Command       []string
+	Pid           int
+	RestartPolicy int
+	StartCount    int
 
 	process *os.Process
 }
 
-func NewProcess(command ...string) *Process {
+func NewProcess(command []string, restartPolicy int) *Process {
 	return &Process{
-		Command: command,
+		Command:       command,
+		RestartPolicy: restartPolicy,
+		StartCount:    0,
 	}
 }
 
@@ -26,11 +30,12 @@ func (p *Process) Start() error {
 
 	err := cmd.Start()
 	if err != nil {
-		log.Fatalf("Process '%s' start failed with %s\n", p.Command, err)
+		log.Fatalf("Cannot start process '%s' because of %s\n", p.Command, err)
 	}
 
 	p.process = cmd.Process
 	p.Pid = cmd.Process.Pid
+	p.StartCount++
 
 	log.Printf("Process '%s' started with pid %d\n", p.Command, p.Pid)
 
@@ -42,7 +47,7 @@ func (p *Process) Stop() error {
 		err := p.process.Signal(os.Interrupt)
 
 		if err != nil {
-			log.Fatalf("Process '%s' stop failed with %s\n", p.Command, err)
+			log.Fatalf("Cannot stop process '%s' because of %s\n", p.Command, err)
 
 			return
 		}
@@ -56,10 +61,21 @@ func (p *Process) Stop() error {
 func (p *Process) WatchState(events chan Event) {
 	state, err := p.process.Wait()
 	if err != nil {
-		log.Fatalf("Process '%s' state failed with %s\n", p.Command, err)
+		log.Fatalf("Cannot watch state of process '%s' because of %s\n", p.Command, err)
 	}
 
 	if state.Exited() {
-		events <- Event{Event: Stopped, Pid: p.Pid}
+		p.handleExit(events)
+	}
+}
+
+func (p *Process) handleExit(events chan Event) {
+	switch p.RestartPolicy {
+	case Always:
+		log.Printf("restarting '%s' (always)\n", p.Command)
+		events <- Event{Event: Restarted, Process: p}
+	default:
+		events <- Event{Event: Exited, Process: p}
+		log.Printf("'%s' is not configured to restart\n", p.Command)
 	}
 }

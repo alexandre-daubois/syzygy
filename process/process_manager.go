@@ -25,9 +25,17 @@ func (pm *ProcessManager) RemoveProcess(p *Process) {
 	delete(pm.Processes, p.Pid)
 }
 
-func (pm *ProcessManager) RunCommand(command ...string) {
-	p := NewProcess(command...)
-	p.Start()
+func (pm *ProcessManager) RunCommand(command []string, restartPolicy int) {
+	pm.runProcess(NewProcess(command, restartPolicy))
+}
+
+func (pm *ProcessManager) runProcess(p *Process) {
+	err := p.Start()
+	if err != nil {
+		log.Printf("Cannot start process '%s' because of %s\n", p.Command, err)
+
+		return
+	}
 
 	pm.AddProcess(p)
 
@@ -46,8 +54,12 @@ func (pm *ProcessManager) Loop() {
 		select {
 		case processEvent := <-pm.events:
 			switch processEvent.Event {
-			case Stopped:
-				pm.handleProcessStopped(pm.Processes[processEvent.Pid])
+			case Exited:
+				pm.handleProcessStopped(pm.Processes[processEvent.Process.Pid])
+			case Restarted:
+				pm.runProcess(processEvent.Process)
+			default:
+				panic("unhandled process event type")
 			}
 		}
 
