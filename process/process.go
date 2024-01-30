@@ -53,13 +53,13 @@ func (p *Process) Stop() error {
 	return nil
 }
 
-func (p *Process) WatchState(events chan ProcessEvent) {
+func (p *Process) WatchState(events chan Event) {
 	state, err := p.process.Wait()
 	if err != nil {
 		log.Fatalf("Process '%s' state failed with %s\n", p.Command, err)
 	}
 
 	if state.Exited() {
-		events <- ProcessEvent{Event: Stopped, Pid: p.Pid}
+		events <- Event{Event: Stopped, Pid: p.Pid}
 	}
 }

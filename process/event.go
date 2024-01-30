@@ -5,7 +5,7 @@ const (
 	Stopped
 )
 
-type ProcessEvent struct {
+type Event struct {
 	Event int
 	Pid   int
 }

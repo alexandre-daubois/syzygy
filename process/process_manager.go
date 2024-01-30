@@ -7,12 +7,12 @@ import (
 type ProcessManager struct {
 	Processes map[int]*Process
 
-	events chan ProcessEvent
+	events chan Event
 }
 
 func NewProcessManager() *ProcessManager {
 	return &ProcessManager{
-		events:    make(chan ProcessEvent, 1),
+		events:    make(chan Event, 1),
 		Processes: make(map[int]*Process),
 	}
 }
