@@ -169,3 +169,39 @@ func TestProcessStartWithOutputLogFile(t *testing.T) {
 
 	os.Remove("/tmp/process.out.log")
 }
+
+func TestProcessStartWithEventsLogFile(t *testing.T) {
+	c := configuration.ProcessConfiguration{
+		Command:       "echo hello",
+		EventsLogFile: "/tmp/process.events.log",
+		RestartPolicy: "always",
+	}
+	p := NewProcess("process", &c)
+
+	err := p.Start()
+	if err != nil {
+		t.Errorf("Expected nil, got %s", err)
+	}
+
+	p.process.Wait()
+	data, _ := os.ReadFile("/tmp/process.events.log")
+	if !strings.Contains(string(data), "'[echo hello]' started with pid") {
+		t.Errorf("Expected %s, got %s", "process started", string(data))
+	}
+
+	os.Remove("/tmp/process.events.log")
+}
+
+func TestProcessStartWithInvalidEventsLogFile(t *testing.T) {
+	c := configuration.ProcessConfiguration{
+		Command:       "echo hello",
+		EventsLogFile: "/invalid/path/process.events.log",
+		RestartPolicy: "always",
+	}
+	p := NewProcess("process", &c)
+
+	err := p.Start()
+	if err == nil {
+		t.Errorf("Expected error, got nil")
+	}
+}

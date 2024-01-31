@@ -32,10 +32,10 @@ processes:
         cwd: "/tmp"
         env:
           - "FOO=bar"
-        stop_signal: "SIGTERM"
-        restart: never
-        output_log_file: "/tmp/process1.out.log"
-        events_log_file: "/tmp/process1.events.log"
+        stop_signal: "SIGKILL"                      # default to SIGTERM
+        restart: never                              # never, always
+        output_log_file: "/tmp/process1.out.log"    # default to stdout and stderr
+        events_log_file: "/tmp/process1.events.log" # default to stdout and stderr
     process2:
         command: "ls -alh"
         restart: never
