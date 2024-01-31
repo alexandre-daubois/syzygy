@@ -29,6 +29,22 @@ func TestProcessManager_SetLogsPath(t *testing.T) {
 	}
 }
 
+func TestProcessManager_GetProcessByName(t *testing.T) {
+	pm := NewProcessManager()
+	c := configuration.ProcessConfiguration{
+		Command:       "echo hello",
+		RestartPolicy: "never",
+	}
+
+	p := NewProcess("process", &c, pm.LogsWriter)
+
+	pm.AddProcess(p)
+
+	if pm.GetProcessByName("process") == nil {
+		t.Errorf("Expected %s, got nil", "Process")
+	}
+}
+
 func TestProcessManager_AddProcess(t *testing.T) {
 	pm := NewProcessManager()
 	c := configuration.ProcessConfiguration{
@@ -96,14 +112,14 @@ func TestProcessManager_Loop(t *testing.T) {
 		RestartPolicy: "never",
 	}
 
-	pm.RunCommand("process", &c1)
-	pm.RunCommand("process", &c2)
+	pm.RunCommand("process1", &c1)
+	pm.RunCommand("process2", &c2)
 
 	go pm.Loop()
 
 	time.Sleep(20 * time.Millisecond)
 
-	if len(pm.Processes) != 0 {
-		t.Errorf("Expected nil, got %s", "Process")
+	if pm.GetProcessByName("process1").Status != ProcessExited {
+		t.Errorf("Expected %s, got %s", ProcessExited, "Process")
 	}
 }

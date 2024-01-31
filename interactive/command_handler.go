@@ -44,10 +44,17 @@ func (ich *InteractiveCommandHandler) HandleCommand(command string) {
 
 		ich.ProcessManager.SetLogsPath(activeConf.LogsPath)
 		go ich.ProcessManager.RunFromConfiguration(activeConf)
+	case "stop":
+		fmt.Println("Stopping process")
+		err := ich.ProcessManager.Stop(args)
+
+		if err != nil {
+			fmt.Printf("Cannot stop process '%s' because of %s\n", args, err)
+		}
 	case "list":
 		fmt.Println("Listing running processes")
 		for pid, p := range ich.ProcessManager.Processes {
-			fmt.Printf("Process '%s' (%d): %s\n", p.Name, pid, p.Command)
+			fmt.Printf("Process '%s' (%d): %s (status: %s)\n", p.Name, pid, p.Command, p.Status)
 		}
 	case "exit":
 		fmt.Println("Exiting...")

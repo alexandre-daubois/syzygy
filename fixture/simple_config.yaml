@@ -14,4 +14,4 @@ processes:
         restart: never
     sleepy:
         command: "sleep 3"
-        restart: always
+        restart: unless-stopped

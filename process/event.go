@@ -4,6 +4,7 @@ const (
 	Started = iota
 	Exited
 	Restarted
+	Stopped
 )
 
 type Event struct {

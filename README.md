@@ -48,11 +48,35 @@ processes:
         env:
           - "FOO=bar"
         stop_signal: "SIGKILL"                      # SIGINT or SIGKILL
-        restart: never                              # never, always
+        restart: never                              # never, always, unless-stopped
     process2:
         command: "ls -alh"
         restart: never
     sleepy:
         command: "sleep 3"
-        restart: always
+        restart: unless-stopped
 ```
+
+### Logs
+
+Syzygy can log its activity to a file. This is useful to debug issues.
+You can define the path to the log file using the `logs` property.
+
+### Processes
+
+Processes are defined in the `processes` section of the configuration file.
+
+Each process is defined by a name and a set of properties. The name is used to
+identify the process in the logs and in the command line interface.
+
+You can change the working directory of the process using the `cwd` property, add
+environment variables using the `env` property, and change the signal used to
+stop the process using the `stop_signal` property.
+
+### Restart Policies
+
+Syzygy supports the following restart policies:
+
+- `never`: The process will never be restarted
+- `always`: The process will always be restarted
+- `unless-stopped`: The process will be restarted unless it has been stopped by the user

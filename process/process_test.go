@@ -6,6 +6,7 @@ import (
 	"strings"
 	"szg/configuration"
 	"testing"
+	"time"
 )
 
 func TestProcessStart(t *testing.T) {
@@ -24,6 +25,10 @@ func TestProcessStart(t *testing.T) {
 
 	if p.Pid == 0 {
 		t.Errorf("Expected %d, got %d", 0, p.Pid)
+	}
+
+	if p.Status != ProcessRunning {
+		t.Errorf("Expected %s, got %s", ProcessRunning, p.Status)
 	}
 
 	if p.StartCount != 1 {
@@ -56,6 +61,10 @@ func TestNewProcess(t *testing.T) {
 
 	if p.RestartPolicy != Always {
 		t.Errorf("Expected %d, got %d", 0, p.RestartPolicy)
+	}
+
+	if p.Status != ProcessPending {
+		t.Errorf("Expected %s, got %s", ProcessPending, p.Status)
 	}
 
 	if p.StartCount != 0 {
@@ -121,6 +130,29 @@ func TestNewProcessWithInvalidStopSignal(t *testing.T) {
 	NewProcess("process", &c, nil)
 }
 
+func TestProcess_Stop(t *testing.T) {
+	c := configuration.ProcessConfiguration{
+		Command:       "echo hello",
+		RestartPolicy: "never",
+	}
+
+	logger := log.New(os.Stdout, "", log.LstdFlags)
+	p := NewProcess("process", &c, logger)
+
+	err := p.Start()
+	if err != nil {
+		t.Errorf("Expected nil, got %s", err)
+	}
+
+	p.Stop()
+
+	time.Sleep(20 * time.Millisecond)
+
+	if p.Status != ProcessStopped {
+		t.Errorf("Expected %s, got %s", ProcessStopped, p.Status)
+	}
+}
+
 func TestProcessStartWithCwd(t *testing.T) {
 	c := configuration.ProcessConfiguration{
 		Command:       "pwd",
@@ -171,4 +203,120 @@ func TestProcessStartWithEnvVars(t *testing.T) {
 	}
 
 	os.Remove("/tmp/process.out.log")
+}
+
+func TestProcess_HandleExit_Always(t *testing.T) {
+	c := configuration.ProcessConfiguration{
+		Command:       "echo hello",
+		RestartPolicy: "always",
+	}
+
+	logger := log.New(os.Stdout, "", log.LstdFlags)
+	p := NewProcess("process", &c, logger)
+
+	err := p.Start()
+	if err != nil {
+		t.Errorf("Expected nil, got %s", err)
+	}
+
+	events := make(chan Event, 1)
+	p.HandleExit(events)
+
+	event := <-events
+
+	if event.Process.Pid != p.Pid {
+		t.Errorf("Expected %d, got %d", p.Pid, p.Pid)
+	}
+
+	if event.Event != Restarted {
+		t.Errorf("Expected %d, got %d", Exited, event.Event)
+	}
+}
+
+func TestProcess_HandleExit_Never(t *testing.T) {
+	c := configuration.ProcessConfiguration{
+		Command:       "echo hello",
+		RestartPolicy: "never",
+	}
+
+	logger := log.New(os.Stdout, "", log.LstdFlags)
+	p := NewProcess("process", &c, logger)
+
+	err := p.Start()
+	if err != nil {
+		t.Errorf("Expected nil, got %s", err)
+	}
+
+	events := make(chan Event, 1)
+	p.HandleExit(events)
+
+	event := <-events
+
+	if event.Process.Pid != p.Pid {
+		t.Errorf("Expected %d, got %d", p.Pid, p.Pid)
+	}
+
+	if event.Event != Exited {
+		t.Errorf("Expected %d, got %d", Exited, event.Event)
+	}
+}
+
+func TestProcess_HandleExit_UnlessStopped_Exited(t *testing.T) {
+	c := configuration.ProcessConfiguration{
+		Command:       "echo hello",
+		RestartPolicy: "unless-stopped",
+	}
+
+	logger := log.New(os.Stdout, "", log.LstdFlags)
+	p := NewProcess("process", &c, logger)
+
+	err := p.Start()
+	if err != nil {
+		t.Errorf("Expected nil, got %s", err)
+	}
+
+	events := make(chan Event, 1)
+	p.HandleExit(events)
+
+	event := <-events
+
+	if event.Process.Pid != p.Pid {
+		t.Errorf("Expected %d, got %d", p.Pid, p.Pid)
+	}
+
+	if event.Event != Restarted {
+		t.Errorf("Expected %d, got %d", Restarted, event.Event)
+	}
+}
+
+func TestProcess_HandleExit_UnlessStopped_Stopped(t *testing.T) {
+	c := configuration.ProcessConfiguration{
+		Command:       "echo hello",
+		RestartPolicy: "unless-stopped",
+	}
+
+	logger := log.New(os.Stdout, "", log.LstdFlags)
+	p := NewProcess("process", &c, logger)
+
+	err := p.Start()
+	if err != nil {
+		t.Errorf("Expected nil, got %s", err)
+	}
+
+	p.Status = ProcessStopped
+
+	events := make(chan Event, 1)
+	p.HandleExit(events)
+
+	event := <-events
+
+	if event.Process.Pid != p.Pid {
+		t.Errorf("Expected %d, got %d", p.Pid, p.Pid)
+	}
+
+	if event.Event != Stopped {
+		t.Errorf("Expected %d, got %d", Stopped, event.Event)
+	}
+
+	close(events)
 }

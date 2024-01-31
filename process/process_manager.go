@@ -1,6 +1,7 @@
 package process
 
 import (
+	"errors"
 	"log"
 	"os"
 	"szg/configuration"
@@ -46,6 +47,28 @@ func (pm *ProcessManager) StopAll() {
 	}
 }
 
+func (pm *ProcessManager) GetProcessByName(name string) *Process {
+	for _, p := range pm.Processes {
+		if p.Name == name {
+			return p
+		}
+	}
+
+	return nil
+}
+
+func (pm *ProcessManager) Stop(name string) error {
+	for _, p := range pm.Processes {
+		if p.Name == name {
+			p.Stop()
+
+			return nil
+		}
+	}
+
+	return errors.New("process not found")
+}
+
 func (pm *ProcessManager) AddProcess(p *Process) {
 	pm.Processes[p.Pid] = p
 }
@@ -72,7 +95,6 @@ func (pm *ProcessManager) runProcess(p *Process) {
 }
 
 func (pm *ProcessManager) handleProcessStopped(p *Process) {
-	pm.RemoveProcess(p)
 	pm.LogsWriter.Printf("Process %d stopped", p.Pid)
 }
 

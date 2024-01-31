@@ -1,11 +1,19 @@
 package process
 
 import (
+	"errors"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
 	"szg/configuration"
+)
+
+const (
+	ProcessPending = "pending"
+	ProcessRunning = "running"
+	ProcessStopped = "stopped"
+	ProcessExited  = "exited"
 )
 
 type Process struct {
@@ -17,6 +25,7 @@ type Process struct {
 	Configuration *configuration.ProcessConfiguration
 	Logger        *log.Logger
 	LogOutput     bool
+	Status        string
 
 	process *os.Process
 }
@@ -28,6 +37,8 @@ func NewProcess(name string, processConfiguration *configuration.ProcessConfigur
 		restartPolicy = Always
 	case "never":
 		restartPolicy = Never
+	case "unless-stopped":
+		restartPolicy = UnlessStopped
 	case "":
 		// be default, never restart the process
 		restartPolicy = Never
@@ -52,6 +63,7 @@ func NewProcess(name string, processConfiguration *configuration.ProcessConfigur
 		StartCount:    0,
 		Configuration: processConfiguration,
 		Logger:        logger,
+		Status:        ProcessPending,
 	}
 }
 
@@ -79,6 +91,7 @@ func (p *Process) Start() error {
 	}
 
 	p.process = cmd.Process
+	p.Status = ProcessRunning
 	p.Pid = cmd.Process.Pid
 	p.StartCount++
 
@@ -104,13 +117,20 @@ func (p *Process) Stop() error {
 		err := p.process.Signal(signalToSend)
 
 		if err != nil {
-			p.Logger.Fatalf("Cannot stop process '%s' because of %s\n", p.Command, err)
+			if errors.Is(err, os.ErrProcessDone) {
+				p.Status = ProcessStopped
+
+				return
+			}
+
+			p.Logger.Printf("Cannot stop process '%s' because of %s\n", p.Command, err)
 
 			return
 		}
 
 		p.process.Wait()
 		p.Logger.Printf("Process '%s' stopped\n", p.Command)
+		p.Status = ProcessStopped
 	}()
 
 	return nil
@@ -118,22 +138,40 @@ func (p *Process) Stop() error {
 
 func (p *Process) WatchState(events chan Event) {
 	state, err := p.process.Wait()
+
+	if err != nil && errors.Is(err, os.ErrProcessDone) {
+		p.Status = ProcessExited
+
+		return
+	}
+
 	if err != nil {
 		p.Logger.Fatalf("Cannot watch state of process '%s' because of %s\n", p.Command, err)
 	}
 
 	if state.Exited() {
-		p.handleExit(events)
+		p.HandleExit(events)
 	}
 }
 
-func (p *Process) handleExit(events chan Event) {
+func (p *Process) HandleExit(events chan Event) {
+	stopped := p.Status == ProcessStopped
+	p.Status = ProcessExited
+
 	switch p.RestartPolicy {
 	case Always:
 		p.Logger.Printf("restarting '%s' (always)\n", p.Command)
 		events <- Event{Event: Restarted, Process: p}
+	case UnlessStopped:
+		if !stopped {
+			p.Logger.Printf("restarting '%s' (unless stopped)\n", p.Command)
+			events <- Event{Event: Restarted, Process: p}
+		} else {
+			p.Logger.Printf("'%s' is stopped, not restarting\n", p.Command)
+			events <- Event{Event: Stopped, Process: p}
+		}
 	default:
-		events <- Event{Event: Exited, Process: p}
 		p.Logger.Printf("'%s' is not configured to restart\n", p.Command)
+		events <- Event{Event: Exited, Process: p}
 	}
 }
