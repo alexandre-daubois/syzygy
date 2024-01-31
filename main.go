@@ -1,9 +1,9 @@
 package main
 
 import (
-	"hypervigo/configuration"
-	"hypervigo/process"
 	"os"
+	"szg/configuration"
+	"szg/process"
 )
 
 func main() {

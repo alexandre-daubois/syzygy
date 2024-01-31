@@ -1,8 +1,8 @@
 package process
 
 import (
-	"hypervigo/configuration"
 	"log"
+	"szg/configuration"
 )
 
 type ProcessManager struct {

@@ -1,8 +1,8 @@
 package process
 
 import (
-	"hypervigo/configuration"
 	"strings"
+	"szg/configuration"
 	"testing"
 	"time"
 )

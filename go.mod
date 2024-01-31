@@ -1,4 +1,4 @@
-module hypervigo
+module szg
 
 go 1.21
 

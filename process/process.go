@@ -1,11 +1,11 @@
 package process
 
 import (
-	"hypervigo/configuration"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
+	"szg/configuration"
 )
 
 type Process struct {
