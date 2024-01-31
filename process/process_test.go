@@ -102,6 +102,22 @@ func TestNewProcessWithoutName(t *testing.T) {
 	NewProcess("", &c)
 }
 
+func TestNewProcessWithInvalidStopSignal(t *testing.T) {
+	c := configuration.ProcessConfiguration{
+		Command:       "echo hello",
+		RestartPolicy: "always",
+		StopSignal:    "SIGTERM",
+	}
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Expected panic, got nil")
+		}
+	}()
+
+	NewProcess("process", &c)
+}
+
 func TestProcessStartWithCwd(t *testing.T) {
 	c := configuration.ProcessConfiguration{
 		Command:       "pwd",

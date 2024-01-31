@@ -45,7 +45,7 @@ func TestYamlReaderRead(t *testing.T) {
 		t.Errorf("Read() should return process with env var 'FOO=bar', got '%s'", p.Env[0])
 	}
 
-	if p.StopSignal != "SIGTERM" {
+	if p.StopSignal != "SIGINT" {
 		t.Errorf("Read() should return process with stop signal 'SIGTERM', got '%s'", p.StopSignal)
 	}
 

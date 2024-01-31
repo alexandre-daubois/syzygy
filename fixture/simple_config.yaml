@@ -6,7 +6,7 @@ processes:
         cwd: "/tmp"
         env:
           - "FOO=bar"
-        stop_signal: "SIGTERM"
+        stop_signal: "SIGINT"
         restart: never
         output_log_file: "/tmp/process1.out.log"
         events_log_file: "/tmp/process1.events.log"

@@ -38,6 +38,12 @@ func NewProcess(name string, processConfiguration *configuration.ProcessConfigur
 		panic("Process name cannot be empty")
 	}
 
+	if processConfiguration.StopSignal != "" &&
+		processConfiguration.StopSignal != "SIGINT" &&
+		processConfiguration.StopSignal != "SIGKILL" {
+		panic("Process stop signal must be either SIGINT or SIGKILL")
+	}
+
 	return &Process{
 		Name:          strings.TrimSpace(name),
 		Command:       strings.Split(processConfiguration.Command, " "),
@@ -110,7 +116,19 @@ func (p *Process) Start() error {
 // Stop is not implemented nor tested yet
 func (p *Process) Stop() error {
 	go func() {
-		err := p.process.Signal(os.Interrupt)
+		stopSignal := p.Configuration.StopSignal
+		var signalToSend os.Signal
+
+		switch stopSignal {
+		case "SIGINT":
+			signalToSend = os.Interrupt
+		case "SIGKILL":
+			signalToSend = os.Kill
+		default:
+			signalToSend = os.Interrupt
+		}
+
+		err := p.process.Signal(signalToSend)
 
 		if err != nil {
 			p.eventsWriter.Fatalf("Cannot stop process '%s' because of %s\n", p.Command, err)

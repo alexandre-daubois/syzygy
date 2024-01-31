@@ -32,7 +32,7 @@ processes:
         cwd: "/tmp"
         env:
           - "FOO=bar"
-        stop_signal: "SIGKILL"                      # default to SIGTERM
+        stop_signal: "SIGKILL"                      # SIGINT or SIGKILL
         restart: never                              # never, always
         output_log_file: "/tmp/process1.out.log"    # default to stdout and stderr
         events_log_file: "/tmp/process1.events.log" # default to stdout and stderr
