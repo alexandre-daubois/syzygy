@@ -2,25 +2,47 @@ package process
 
 import (
 	"log"
+	"os"
 	"szg/configuration"
 )
 
 type ProcessManager struct {
-	Processes map[int]*Process
+	Processes  map[int]*Process
+	LogsWriter *log.Logger
 
 	events chan Event
 }
 
 func NewProcessManager() *ProcessManager {
 	return &ProcessManager{
-		events:    make(chan Event, 1),
-		Processes: make(map[int]*Process),
+		events:     make(chan Event, 1),
+		Processes:  make(map[int]*Process),
+		LogsWriter: log.New(os.Stdout, "", log.LstdFlags),
+	}
+}
+
+func (pm *ProcessManager) SetLogsPath(path string) {
+	if path != "" {
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+		if err != nil {
+			panic(err)
+		}
+
+		pm.LogsWriter = log.New(file, "", log.LstdFlags)
+	} else {
+		panic("Logs path cannot be empty")
 	}
 }
 
 func (pm *ProcessManager) RunFromConfiguration(configuration *configuration.Configuration) {
 	for name, pc := range configuration.Processes {
 		pm.RunCommand(name, &pc)
+	}
+}
+
+func (pm *ProcessManager) StopAll() {
+	for _, p := range pm.Processes {
+		p.Stop()
 	}
 }
 
@@ -33,13 +55,13 @@ func (pm *ProcessManager) RemoveProcess(p *Process) {
 }
 
 func (pm *ProcessManager) RunCommand(name string, processConfiguration *configuration.ProcessConfiguration) {
-	pm.runProcess(NewProcess(name, processConfiguration))
+	pm.runProcess(NewProcess(name, processConfiguration, pm.LogsWriter))
 }
 
 func (pm *ProcessManager) runProcess(p *Process) {
 	err := p.Start()
 	if err != nil {
-		log.Printf("Cannot start process '%s' because of %s\n", p.Command, err)
+		pm.LogsWriter.Printf("Cannot start process '%s' because of %s\n", p.Command, err)
 
 		return
 	}
@@ -51,7 +73,7 @@ func (pm *ProcessManager) runProcess(p *Process) {
 
 func (pm *ProcessManager) handleProcessStopped(p *Process) {
 	pm.RemoveProcess(p)
-	log.Printf("Process %d stopped", p.Pid)
+	pm.LogsWriter.Printf("Process %d stopped", p.Pid)
 }
 
 func (pm *ProcessManager) Loop() {
@@ -64,6 +86,7 @@ func (pm *ProcessManager) Loop() {
 			case Exited:
 				pm.handleProcessStopped(pm.Processes[processEvent.Process.Pid])
 			case Restarted:
+				delete(pm.Processes, processEvent.Process.Pid)
 				pm.runProcess(processEvent.Process)
 			default:
 				panic("unhandled process event type")

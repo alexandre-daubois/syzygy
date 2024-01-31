@@ -3,6 +3,7 @@ package configuration
 type Configuration struct {
 	// indexed by the process config name
 	Processes map[string]ProcessConfiguration `yaml:"processes"`
+	LogsPath  string                          `yaml:"logs"`
 }
 
 type ProcessConfiguration struct {
@@ -11,6 +12,4 @@ type ProcessConfiguration struct {
 	Env           []string `yaml:"env"`
 	StopSignal    string   `yaml:"stop_signal"`
 	RestartPolicy string   `yaml:"restart"`
-	OutputLogFile string   `yaml:"output_log_file"`
-	EventsLogFile string   `yaml:"events_log_file"`
 }

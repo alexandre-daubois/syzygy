@@ -19,6 +19,16 @@ func TestNewProcessManager(t *testing.T) {
 	}
 }
 
+func TestProcessManager_SetLogsPath(t *testing.T) {
+	pm := NewProcessManager()
+
+	pm.SetLogsPath("/tmp/logs")
+
+	if pm.LogsWriter == nil {
+		t.Errorf("Expected %s, got nil", "LogsWriter")
+	}
+}
+
 func TestProcessManager_AddProcess(t *testing.T) {
 	pm := NewProcessManager()
 	c := configuration.ProcessConfiguration{
@@ -26,7 +36,7 @@ func TestProcessManager_AddProcess(t *testing.T) {
 		RestartPolicy: "never",
 	}
 
-	p := NewProcess("process", &c)
+	p := NewProcess("process", &c, pm.LogsWriter)
 
 	pm.AddProcess(p)
 
@@ -50,7 +60,7 @@ func TestProcessManager_RemoveProcess(t *testing.T) {
 		RestartPolicy: "never",
 	}
 
-	p := NewProcess("process", &c)
+	p := NewProcess("process", &c, pm.LogsWriter)
 
 	pm.AddProcess(p)
 	pm.RemoveProcess(p)

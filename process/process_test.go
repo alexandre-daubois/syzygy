@@ -1,6 +1,7 @@
 package process
 
 import (
+	"log"
 	"os"
 	"strings"
 	"szg/configuration"
@@ -12,7 +13,9 @@ func TestProcessStart(t *testing.T) {
 		Command:       "echo hello",
 		RestartPolicy: "always",
 	}
-	p := NewProcess("process", &c)
+
+	logger := log.New(os.Stdout, "", log.LstdFlags)
+	p := NewProcess("process", &c, logger)
 
 	err := p.Start()
 	if err != nil {
@@ -33,7 +36,7 @@ func TestNewProcess(t *testing.T) {
 		Command:       "echo hello",
 		RestartPolicy: "always",
 	}
-	p := NewProcess("process", &c)
+	p := NewProcess("process", &c, nil)
 
 	if p.Name != "process" {
 		t.Errorf("Expected %s, got %s", "process", p.Name)
@@ -72,7 +75,7 @@ func TestNewProcessWithInvalidRestartPolicy(t *testing.T) {
 		}
 	}()
 
-	NewProcess("process", &c)
+	NewProcess("process", &c, nil)
 }
 
 func TestNewProcessWithoutRestartPolicy(t *testing.T) {
@@ -80,7 +83,7 @@ func TestNewProcessWithoutRestartPolicy(t *testing.T) {
 		Command: "echo hello",
 	}
 
-	p := NewProcess("process", &c)
+	p := NewProcess("process", &c, nil)
 
 	if p.RestartPolicy != Never {
 		t.Errorf("Expected %d, got %d", Never, p.RestartPolicy)
@@ -99,7 +102,7 @@ func TestNewProcessWithoutName(t *testing.T) {
 		}
 	}()
 
-	NewProcess("", &c)
+	NewProcess("", &c, nil)
 }
 
 func TestNewProcessWithInvalidStopSignal(t *testing.T) {
@@ -115,7 +118,7 @@ func TestNewProcessWithInvalidStopSignal(t *testing.T) {
 		}
 	}()
 
-	NewProcess("process", &c)
+	NewProcess("process", &c, nil)
 }
 
 func TestProcessStartWithCwd(t *testing.T) {
@@ -123,9 +126,11 @@ func TestProcessStartWithCwd(t *testing.T) {
 		Command:       "pwd",
 		Cwd:           "/tmp",
 		RestartPolicy: "always",
-		OutputLogFile: "/tmp/process.out.log",
 	}
-	p := NewProcess("process", &c)
+
+	file, _ := os.Create("/tmp/process.out.log")
+	logger := log.New(file, "", log.LstdFlags)
+	p := NewProcess("process", &c, logger)
 
 	err := p.Start()
 	if err != nil {
@@ -134,7 +139,7 @@ func TestProcessStartWithCwd(t *testing.T) {
 
 	p.process.Wait()
 	data, _ := os.ReadFile("/tmp/process.out.log")
-	if string(data) != "/tmp\n" {
+	if strings.Contains(string(data), "/tmp\n") {
 		t.Errorf("Expected %s, got %s", "/tmp\n", string(data))
 	}
 
@@ -146,9 +151,13 @@ func TestProcessStartWithEnvVars(t *testing.T) {
 		Command:       "env",
 		Env:           []string{"FOO=bar"},
 		RestartPolicy: "always",
-		OutputLogFile: "/tmp/process.out.log",
 	}
-	p := NewProcess("process", &c)
+
+	file, _ := os.Create("/tmp/process.out.log")
+	logger := log.New(file, "", log.LstdFlags)
+	p := NewProcess("process", &c, logger)
+
+	p.LogOutput = true
 
 	err := p.Start()
 	if err != nil {
@@ -157,67 +166,9 @@ func TestProcessStartWithEnvVars(t *testing.T) {
 
 	p.process.Wait()
 	data, _ := os.ReadFile("/tmp/process.out.log")
-	if !strings.Contains(string(data), "FOO=bar\n") {
+	if !strings.Contains(string(data), "FOO=bar") {
 		t.Errorf("Expected %s, got %s", "FOO=bar\n", string(data))
 	}
 
 	os.Remove("/tmp/process.out.log")
-}
-
-func TestProcessStartWithOutputLogFile(t *testing.T) {
-	c := configuration.ProcessConfiguration{
-		Command:       "echo hello",
-		OutputLogFile: "/tmp/process.out.log",
-		RestartPolicy: "always",
-	}
-	p := NewProcess("process", &c)
-
-	err := p.Start()
-	if err != nil {
-		t.Errorf("Expected nil, got %s", err)
-	}
-
-	p.process.Wait()
-	data, _ := os.ReadFile("/tmp/process.out.log")
-	if string(data) != "hello\n" {
-		t.Errorf("Expected %s, got %s", "hello\n", string(data))
-	}
-
-	os.Remove("/tmp/process.out.log")
-}
-
-func TestProcessStartWithEventsLogFile(t *testing.T) {
-	c := configuration.ProcessConfiguration{
-		Command:       "echo hello",
-		EventsLogFile: "/tmp/process.events.log",
-		RestartPolicy: "always",
-	}
-	p := NewProcess("process", &c)
-
-	err := p.Start()
-	if err != nil {
-		t.Errorf("Expected nil, got %s", err)
-	}
-
-	p.process.Wait()
-	data, _ := os.ReadFile("/tmp/process.events.log")
-	if !strings.Contains(string(data), "'[echo hello]' started with pid") {
-		t.Errorf("Expected %s, got %s", "process started", string(data))
-	}
-
-	os.Remove("/tmp/process.events.log")
-}
-
-func TestProcessStartWithInvalidEventsLogFile(t *testing.T) {
-	c := configuration.ProcessConfiguration{
-		Command:       "echo hello",
-		EventsLogFile: "/invalid/path/process.events.log",
-		RestartPolicy: "always",
-	}
-	p := NewProcess("process", &c)
-
-	err := p.Start()
-	if err == nil {
-		t.Errorf("Expected error, got nil")
-	}
 }

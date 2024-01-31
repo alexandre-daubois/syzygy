@@ -3,7 +3,7 @@ Syzygy
 
 Syzygy is a simple, lightweight, and fast process manager for Unix-like systems.
 
-Syzygy is written in Go and is inspired by Sueprvisor and PM2.
+This program is written in Go and is inspired by Sueprvisor and PM2.
 
 ## Installation
 
@@ -11,8 +11,8 @@ Syzygy is written in Go and is inspired by Sueprvisor and PM2.
 
 ```bash
 $ git clone
-$ cd szygy
-$ go build
+$ cd syzygy
+$ go build .
 ```
 
 ## Usage
@@ -21,11 +21,26 @@ $ go build
 $ szg configuration_file.yaml
 ```
 
+This will read the configuration file and start the processes defined in it.
+
+### Interacting with Syzygy
+
+Syzygy can be interacted with using the `szg` command without any arguments.
+You'll then be prompted a command line interface to interact with Syzygy.
+
+The following commands are available:
+
+- `help`: Display the help message
+- `list`: List the processes managed by Syzygy
+- `start <configuration-file>`: Start a process
+- `exit`: Exit the command line interface
+
 ## Configuration
 
-Szygy uses a YAML configuration file to define the processes to manage.
+Syzygy uses a YAML configuration file to define the processes to manage.
 
 ```yaml
+logs: "/var/log/syzygy.log"
 processes:
     process1:
         command: "echo hello world"
@@ -34,8 +49,6 @@ processes:
           - "FOO=bar"
         stop_signal: "SIGKILL"                      # SIGINT or SIGKILL
         restart: never                              # never, always
-        output_log_file: "/tmp/process1.out.log"    # default to stdout and stderr
-        events_log_file: "/tmp/process1.events.log" # default to stdout and stderr
     process2:
         command: "ls -alh"
         restart: never

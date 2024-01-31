@@ -52,14 +52,6 @@ func TestYamlReaderRead(t *testing.T) {
 	if p.RestartPolicy != "never" {
 		t.Errorf("Read() should return process with restart policy 'always', got '%s'", p.RestartPolicy)
 	}
-
-	if p.OutputLogFile != "/tmp/process1.out.log" {
-		t.Errorf("Read() should return process with output log file '/tmp/process1.out.log', got '%s'", p.OutputLogFile)
-	}
-
-	if p.EventsLogFile != "/tmp/process1.events.log" {
-		t.Errorf("Read() should return process with events log file '/tmp/process1.events.log', got '%s'", p.EventsLogFile)
-	}
 }
 
 func TestYamlReaderReadNotExistingFile(t *testing.T) {

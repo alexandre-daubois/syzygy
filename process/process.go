@@ -15,12 +15,13 @@ type Process struct {
 	RestartPolicy int
 	StartCount    int
 	Configuration *configuration.ProcessConfiguration
+	Logger        *log.Logger
+	LogOutput     bool
 
-	process      *os.Process
-	eventsWriter *log.Logger
+	process *os.Process
 }
 
-func NewProcess(name string, processConfiguration *configuration.ProcessConfiguration) *Process {
+func NewProcess(name string, processConfiguration *configuration.ProcessConfiguration, logger *log.Logger) *Process {
 	var restartPolicy int
 	switch processConfiguration.RestartPolicy {
 	case "always":
@@ -50,44 +51,12 @@ func NewProcess(name string, processConfiguration *configuration.ProcessConfigur
 		RestartPolicy: restartPolicy,
 		StartCount:    0,
 		Configuration: processConfiguration,
+		Logger:        logger,
 	}
 }
 
 func (p *Process) Start() error {
 	cmd := exec.Command(p.Command[0], p.Command[1:]...)
-
-	var output, errout *os.File
-	var err error
-
-	if p.Configuration.EventsLogFile != "" {
-		file, err := os.OpenFile(p.Configuration.EventsLogFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-		if err != nil {
-			log.Printf("Cannot create file '%s' because of %s\n", p.Configuration.EventsLogFile, err)
-
-			return err
-		}
-
-		p.eventsWriter = log.New(file, "", log.LstdFlags)
-	} else {
-		p.eventsWriter = log.New(os.Stdout, "", log.LstdFlags)
-	}
-
-	if p.Configuration.OutputLogFile != "" {
-		output, err = os.OpenFile(p.Configuration.OutputLogFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-		if err != nil {
-			p.eventsWriter.Printf("Cannot create file '%s' because of %s\n", p.Configuration.OutputLogFile, err)
-
-			return err
-		}
-
-		errout = output
-	} else {
-		output = os.Stdout
-		errout = os.Stderr
-	}
-
-	cmd.Stdout = output
-	cmd.Stderr = errout
 
 	if p.Configuration.Cwd != "" {
 		cmd.Dir = p.Configuration.Cwd
@@ -97,9 +66,14 @@ func (p *Process) Start() error {
 		cmd.Env = append(os.Environ(), p.Configuration.Env...)
 	}
 
-	err = cmd.Start()
+	if p.LogOutput {
+		cmd.Stdout = p.Logger.Writer()
+		cmd.Stderr = p.Logger.Writer()
+	}
+
+	err := cmd.Start()
 	if err != nil {
-		p.eventsWriter.Printf("Cannot start process '%s' because of %s\n", p.Command, err)
+		p.Logger.Printf("Cannot start process '%s' because of %s\n", p.Command, err)
 
 		return err
 	}
@@ -108,12 +82,11 @@ func (p *Process) Start() error {
 	p.Pid = cmd.Process.Pid
 	p.StartCount++
 
-	p.eventsWriter.Printf("Process '%s' started with pid %d\n", p.Command, p.Pid)
+	p.Logger.Printf("Process '%s' started with pid %d\n", p.Command, p.Pid)
 
 	return nil
 }
 
-// Stop is not implemented nor tested yet
 func (p *Process) Stop() error {
 	go func() {
 		stopSignal := p.Configuration.StopSignal
@@ -131,12 +104,13 @@ func (p *Process) Stop() error {
 		err := p.process.Signal(signalToSend)
 
 		if err != nil {
-			p.eventsWriter.Fatalf("Cannot stop process '%s' because of %s\n", p.Command, err)
+			p.Logger.Fatalf("Cannot stop process '%s' because of %s\n", p.Command, err)
 
 			return
 		}
 
 		p.process.Wait()
+		p.Logger.Printf("Process '%s' stopped\n", p.Command)
 	}()
 
 	return nil
@@ -145,7 +119,7 @@ func (p *Process) Stop() error {
 func (p *Process) WatchState(events chan Event) {
 	state, err := p.process.Wait()
 	if err != nil {
-		p.eventsWriter.Fatalf("Cannot watch state of process '%s' because of %s\n", p.Command, err)
+		p.Logger.Fatalf("Cannot watch state of process '%s' because of %s\n", p.Command, err)
 	}
 
 	if state.Exited() {
@@ -156,10 +130,10 @@ func (p *Process) WatchState(events chan Event) {
 func (p *Process) handleExit(events chan Event) {
 	switch p.RestartPolicy {
 	case Always:
-		p.eventsWriter.Printf("restarting '%s' (always)\n", p.Command)
+		p.Logger.Printf("restarting '%s' (always)\n", p.Command)
 		events <- Event{Event: Restarted, Process: p}
 	default:
 		events <- Event{Event: Exited, Process: p}
-		p.eventsWriter.Printf("'%s' is not configured to restart\n", p.Command)
+		p.Logger.Printf("'%s' is not configured to restart\n", p.Command)
 	}
 }
