@@ -1,11 +1,33 @@
 package main
 
-import "hypervigo/process"
+import (
+	"hypervigo/configuration"
+	"hypervigo/process"
+	"os"
+)
 
 func main() {
 	processManager := process.NewProcessManager()
 
-	processManager.RunCommand([]string{"sleep", "2"}, process.Always)
-	processManager.RunCommand([]string{"sleep", "3"}, process.Never)
+	if len(os.Args) < 2 {
+		panic("No configuration file provided")
+	}
+
+	configurationFile := os.Args[1]
+	if configurationFile == "" {
+		panic("No configuration file provided")
+	}
+
+	if _, err := os.Stat(configurationFile); os.IsNotExist(err) {
+		panic("Configuration file does not exist")
+	}
+
+	reader := configuration.NewReader()
+	activeConf, err := reader.Read(configurationFile)
+	if err != nil {
+		panic(err)
+	}
+
+	processManager.RunFromConfiguration(activeConf)
 	processManager.Loop()
 }

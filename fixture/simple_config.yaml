@@ -1,0 +1,18 @@
+# Basic configuration file for Syzygy
+# This file is in YAML format, see http://www.yaml.org/start.html for more information
+processes:
+    process1:
+        command: "echo hello world"
+        cwd: "/tmp"
+        env:
+          - "FOO=bar"
+        stop_signal: "SIGTERM"
+        restart: never
+        output_log_file: "/tmp/process1.out.log"
+        events_log_file: "/tmp/process1.events.log"
+    process2:
+        command: "ls -alh"
+        restart: never
+    sleepy:
+        command: "sleep 3"
+        restart: always

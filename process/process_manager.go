@@ -1,6 +1,7 @@
 package process
 
 import (
+	"hypervigo/configuration"
 	"log"
 )
 
@@ -17,6 +18,12 @@ func NewProcessManager() *ProcessManager {
 	}
 }
 
+func (pm *ProcessManager) RunFromConfiguration(configuration *configuration.Configuration) {
+	for name, pc := range configuration.Processes {
+		pm.RunCommand(name, &pc)
+	}
+}
+
 func (pm *ProcessManager) AddProcess(p *Process) {
 	pm.Processes[p.Pid] = p
 }
@@ -25,8 +32,8 @@ func (pm *ProcessManager) RemoveProcess(p *Process) {
 	delete(pm.Processes, p.Pid)
 }
 
-func (pm *ProcessManager) RunCommand(command []string, restartPolicy int) {
-	pm.runProcess(NewProcess(command, restartPolicy))
+func (pm *ProcessManager) RunCommand(name string, processConfiguration *configuration.ProcessConfiguration) {
+	pm.runProcess(NewProcess(name, processConfiguration))
 }
 
 func (pm *ProcessManager) runProcess(p *Process) {

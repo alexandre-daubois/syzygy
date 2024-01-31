@@ -1,36 +1,87 @@
 package process
 
 import (
+	"hypervigo/configuration"
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 type Process struct {
+	Name          string
 	Command       []string
 	Pid           int
 	RestartPolicy int
 	StartCount    int
+	Configuration *configuration.ProcessConfiguration
 
 	process *os.Process
 }
 
-func NewProcess(command []string, restartPolicy int) *Process {
+func NewProcess(name string, processConfiguration *configuration.ProcessConfiguration) *Process {
+	var restartPolicy int
+	switch processConfiguration.RestartPolicy {
+	case "always":
+		restartPolicy = Always
+	case "never":
+		restartPolicy = Never
+	case "":
+		// be default, never restart the process
+		restartPolicy = Never
+	default:
+		panic("Unknown restart policy for process " + name)
+	}
+
+	if strings.TrimSpace(name) == "" {
+		panic("Process name cannot be empty")
+	}
+
 	return &Process{
-		Command:       command,
+		Name:          strings.TrimSpace(name),
+		Command:       strings.Split(processConfiguration.Command, " "),
 		RestartPolicy: restartPolicy,
 		StartCount:    0,
+		Configuration: processConfiguration,
 	}
 }
 
 func (p *Process) Start() error {
 	cmd := exec.Command(p.Command[0], p.Command[1:]...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 
-	err := cmd.Start()
+	var output, errout *os.File
+	var err error
+
+	if p.Configuration.OutputLogFile != "" {
+		output, err = os.Create(p.Configuration.OutputLogFile)
+		if err != nil {
+			log.Printf("Cannot create file '%s' because of %s\n", p.Configuration.OutputLogFile, err)
+
+			return err
+		}
+
+		errout = output
+	} else {
+		output = os.Stdout
+		errout = os.Stderr
+	}
+
+	cmd.Stdout = output
+	cmd.Stderr = errout
+
+	if p.Configuration.Cwd != "" {
+		cmd.Dir = p.Configuration.Cwd
+	}
+
+	if len(p.Configuration.Env) > 0 {
+		cmd.Env = append(os.Environ(), p.Configuration.Env...)
+	}
+
+	err = cmd.Start()
 	if err != nil {
-		log.Fatalf("Cannot start process '%s' because of %s\n", p.Command, err)
+		log.Printf("Cannot start process '%s' because of %s\n", p.Command, err)
+
+		return err
 	}
 
 	p.process = cmd.Process
@@ -42,6 +93,7 @@ func (p *Process) Start() error {
 	return nil
 }
 
+// Stop is not implemented nor tested yet
 func (p *Process) Stop() error {
 	go func() {
 		err := p.process.Signal(os.Interrupt)
